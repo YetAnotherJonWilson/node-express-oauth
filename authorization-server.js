@@ -101,21 +101,23 @@ app.post('/token', (req, res) => {
 	let obj = {};
 	if(!req.headers.authorization) {
 		res.status(401).end();
-	}
-	const authHeaders = decodeAuthCredentials(req.headers.authorization);
-	const { clientId, clientSecret } = authHeaders;
-	if (!clients[clientId]?.clientSecret === clientSecret) {
-		res.status(401).end();
-	}
-	if (!authorizationCodes[req.body.code]) {
-		res.status(401).end();
 	} else {
-		obj = authorizationCodes[req.body.code];
-		delete authorizationCodes[req.body.code];
-	}
-	const token = jwt.sign({ "userName": obj.userName, "scope": obj.clientReq.scope}, config.privateKey, { algorithm: 'RS256'});
-	const response = {"access_token": token, "token_type": "Bearer"}
-	res.status(200).json(response);
+		const authHeaders = decodeAuthCredentials(req.headers.authorization);
+		const { clientId, clientSecret } = authHeaders;
+		if (!clients[clientId]?.clientSecret === clientSecret) {
+			res.status(401).end();
+		} else {
+			if (!authorizationCodes[req.body.code]) {
+				res.status(401).end();
+			} else {
+				obj = authorizationCodes[req.body.code];
+				delete authorizationCodes[req.body.code];
+				const token = jwt.sign({ "userName": obj.userName, "scope": obj.clientReq?.scope}, config.privateKey, { algorithm: 'RS256'});
+				const response = {"access_token": token, "token_type": "Bearer"}
+				res.status(200).json(response);
+			}
+		}
+	}	
 })
 
 const server = app.listen(config.port, "localhost", function () {
