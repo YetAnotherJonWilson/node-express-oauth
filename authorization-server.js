@@ -60,17 +60,19 @@ app.get('/authorize', (req, res) => {
 	if (!clients[clientId]) {
 		res.status(401).end();
 	}
-	const reqScopes = req.query.scope.split(" ");
-	if (!containsAll(clients[clientId].scopes, reqScopes)) {
-		res.status(401).end();
+	if(req.query.scope) {
+		const reqScopes = req.query.scope?.split(" ");
+		if (!containsAll(clients[clientId]?.scopes, reqScopes)) {
+			res.status(401).end();
+		} else {
+			const params = {
+				client: clients[clientId],
+				scope: req.query.scope,
+				requestId: reqID
+			}
+			res.render("login", params);
+		}
 	}
-	res.status(200);
-	const params = {
-		client: clients[clientId],
-		scope: req.query.scope,
-		requestId: reqID
-	}
-	res.render("login", params);
   })
 
 app.post('/approve', (req, res) => {
