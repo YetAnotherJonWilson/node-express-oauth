@@ -53,6 +53,68 @@ app.use(bodyParser.urlencoded({ extended: true }))
 /*
 Your code here
 */
+app.get('/authorize', (req, res) => {
+	const reqID = randomString();
+	requests[reqID] = req.query;
+	const clientId = req.query.client_id;
+	if (!clients[clientId]) {
+		res.status(401).end();
+	}
+	const reqScopes = req.query.scope.split(" ");
+	if (!containsAll(clients[clientId].scopes, reqScopes)) {
+		res.status(401).end();
+	}
+	res.status(200);
+	const params = {
+		client: clients[clientId],
+		scope: req.query.scope,
+		requestId: reqID
+	}
+	res.render("login", params);
+  })
+
+app.post('/approve', (req, res) => {
+	const username = req.body.userName;
+	const password = req.body.password;
+	const reqId = req.body.requestId;
+	if (users[username] === password && requests[reqId]) {
+		const userRequest = requests[reqId];
+		delete requests[reqId];
+		const randomStr = randomString();
+		authorizationCodes[randomStr] = {
+			clientReq: userRequest,
+			userName: username
+		}
+		const params = new URLSearchParams({
+			code: randomStr,
+			state: userRequest.state,
+		  });
+		res.redirect(302, `${userRequest.redirect_uri}?${params}`)
+	} else {
+		res.status(401).end();
+	}
+})
+
+app.post('/token', (req, res) => {
+	let obj = {};
+	if(!req.headers.authorization) {
+		res.status(401).end();
+	}
+	const authHeaders = decodeAuthCredentials(req.headers.authorization);
+	const { clientId, clientSecret } = authHeaders;
+	if (!clients[clientId]?.clientSecret === clientSecret) {
+		res.status(401).end();
+	}
+	if (!authorizationCodes[req.body.code]) {
+		res.status(401).end();
+	} else {
+		obj = authorizationCodes[req.body.code];
+		delete authorizationCodes[req.body.code];
+	}
+	const token = jwt.sign({ "userName": obj.userName, "scope": obj.clientReq.scope}, config.privateKey, { algorithm: 'RS256'});
+	const response = {"access_token": token, "token_type": "Bearer"}
+	res.status(200).json(response);
+})
 
 const server = app.listen(config.port, "localhost", function () {
 	var host = server.address().address
